@@ -9,6 +9,8 @@ interface PlaneData {
   imageAspect?: number; // width / height
 }
 
+const isTouchDevice = () => typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
 const FibonacciSphere: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>();
@@ -28,6 +30,11 @@ const FibonacciSphere: React.FC = () => {
   const isModalOpenRef = useRef(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+
+  // Touch state
+  const isTouchingRef = useRef(false);
+  const lastTouchXRef = useRef(0);
+  const lastTouchTimeRef = useRef(0);
 
   // Sample images for the planes (using placeholder URLs)
   const imageUrls = [
@@ -200,113 +207,39 @@ const FibonacciSphere: React.FC = () => {
 
     planesRef.current = planes;
 
-    // Mouse move handler
+    // Mouse move handler (desktop)
     const handleMouseMove = (event: MouseEvent) => {
       if (!isAnimatedRef.current || isModalOpenRef.current) return;
-      
       mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
-      // Ignore vertical movement for rotation
-      // mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
-      
       targetRotationRef.current.y = mouseRef.current.x * Math.PI * 0.5;
-      // Lock x-rotation to zero to prevent up/down tilt
       targetRotationRef.current.x = 0;
     };
 
-    // Click handler for selecting planes
-    const handleClick = (event: MouseEvent) => {
-      if (!isAnimatedRef.current || isModalOpenRef.current || !cameraRef.current || !rendererRef.current || !sphereGroupRef.current) return;
-      const rect = rendererRef.current.domElement.getBoundingClientRect();
-      mouseNdcRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouseNdcRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      const raycaster = raycasterRef.current!;
-      raycaster.setFromCamera(mouseNdcRef.current, cameraRef.current);
-      const intersects = raycaster.intersectObjects(sphereGroupRef.current.children, true);
-      if (!intersects.length) return;
-
-      const first = intersects[0];
-      const mesh = first.object as THREE.Mesh;
-      const planeData = planesRef.current.find(p => p.mesh === mesh);
-      if (!planeData) return;
-
-      selectedPlaneRef.current = planeData;
-      isModalOpenRef.current = true;
-      setIsModalOpen(true);
-
-      const cam = cameraRef.current;
-      const group = sphereGroupRef.current;
-
-      // Target is the center of the sphere/group
-      const groupWorldCenter = group.getWorldPosition(new THREE.Vector3());
-      const targetWorldPos = groupWorldCenter.clone();
-      const targetLocalPos = group.worldToLocal(targetWorldPos.clone()); // will be (0,0,0)
-
-      // Compute uniform scale to fit within both width and height fractions (contain)
-      const distanceToCenter = cam.position.distanceTo(groupWorldCenter);
-      const worldHeight = 2 * distanceToCenter * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-      const worldWidth = worldHeight * cam.aspect;
-      const desiredWidthFraction = 0.3; // smaller size, adds padding
-      const desiredHeightFraction = 0.3; // smaller height fraction
-      const maxW = worldWidth * desiredWidthFraction;
-      const maxH = worldHeight * desiredHeightFraction;
-      const planeParams = (mesh.geometry as THREE.PlaneGeometry).parameters as { width: number; height: number };
-      const baseW = planeParams.width || 2.5;
-      const baseH = planeParams.height || 3.5;
-      // Use image aspect if known; otherwise fall back to geometry aspect
-      const imageAspect = (selectedPlaneRef.current?.imageAspect) ?? (baseW / baseH);
-      // Fit within the max box while preserving aspect
-      let targetW = maxW;
-      let targetH = targetW / imageAspect;
-      if (targetH > maxH) {
-        targetH = maxH;
-        targetW = targetH * imageAspect;
-      }
-      const xScale = targetW / baseW;
-      const yScale = targetH / baseH;
-
-      const tl = gsap.timeline();
-
-      // Dim other planes
-      planesRef.current.forEach(p => {
-        if (p.mesh !== mesh) {
-          tl.to((p.mesh.material as any), { opacity: 0.12, duration: 0.5, ease: 'power2.out' }, 0);
-        }
-      });
-
-      // Ensure selected renders on top while modal is open
-      const selectedMat = mesh.material as THREE.Material & { depthTest?: boolean; depthWrite?: boolean };
-      selectedMat.depthTest = false;
-      selectedMat.depthWrite = false;
-      mesh.renderOrder = 999;
-
-      // Animate position to exact center in parent-local space and scale preserving aspect
-      tl.to(mesh.position, { x: targetLocalPos.x, y: targetLocalPos.y, z: targetLocalPos.z, duration: 1.0, ease: 'power3.inOut' }, 0);
-      tl.to(mesh.scale, { x: xScale, y: yScale, z: 1, duration: 1.0, ease: 'power3.inOut' }, 0);
-
-      // Simple angle correction to face camera without flip
-      const startQuat = mesh.quaternion.clone();
-      const lookAtMatrix = new THREE.Matrix4();
-      lookAtMatrix.lookAt(targetWorldPos.clone(), cam.position.clone(), new THREE.Vector3(0, 1, 0));
-      const targetWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
-      const parentWorldQuat = new THREE.Quaternion();
-      mesh.parent && mesh.parent.getWorldQuaternion(parentWorldQuat);
-      let targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
-      // Avoid long-path slerp which can look like a flip
-      if (startQuat.dot(targetLocalQuat) < 0) targetLocalQuat.set(-targetLocalQuat.x, -targetLocalQuat.y, -targetLocalQuat.z, -targetLocalQuat.w);
-      const q = { t: 0 };
-      tl.to(q, {
-        t: 1,
-        duration: 1.0,
-        ease: 'power2.out',
-        onUpdate: () => {
-          mesh.quaternion.copy(startQuat).slerp(targetLocalQuat, q.t);
-        }
-      }, 0);
+    // Touch handlers (mobile swipe)
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!isAnimatedRef.current || isModalOpenRef.current) return;
+      isTouchingRef.current = true;
+      lastTouchXRef.current = e.touches[0].clientX;
+      lastTouchTimeRef.current = performance.now();
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isTouchingRef.current || !isAnimatedRef.current || isModalOpenRef.current) return;
+      const x = e.touches[0].clientX;
+      const dx = x - lastTouchXRef.current;
+      lastTouchXRef.current = x;
+      // Convert pixels to radians; scale by screen width for consistent feel
+      const rotationDelta = (dx / window.innerWidth) * Math.PI; // one screen width ~ 180deg
+      targetRotationRef.current.y += rotationDelta;
+      targetRotationRef.current.x = 0;
+    };
+    const handleTouchEnd = () => {
+      isTouchingRef.current = false;
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    renderer.domElement.addEventListener('click', handleClick);
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     // Animation loop
     const animate = () => {
@@ -314,6 +247,11 @@ const FibonacciSphere: React.FC = () => {
       
       // Smooth rotation interpolation
       if (isAnimatedRef.current && !isModalOpenRef.current && sphereGroupRef.current) {
+        // Mobile gentle auto-rotate when not touching
+        if (isTouchDevice() && !isTouchingRef.current) {
+          targetRotationRef.current.y += 0.003; // slow drift
+        }
+
         currentRotationRef.current.x += (targetRotationRef.current.x - currentRotationRef.current.x) * 0.05;
         currentRotationRef.current.y += (targetRotationRef.current.y - currentRotationRef.current.y) * 0.05;
         
@@ -347,7 +285,9 @@ const FibonacciSphere: React.FC = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
-      renderer.domElement.removeEventListener('click', handleClick);
+      window.removeEventListener('touchstart', handleTouchStart as any);
+      window.removeEventListener('touchmove', handleTouchMove as any);
+      window.removeEventListener('touchend', handleTouchEnd as any);
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
       }
@@ -460,7 +400,7 @@ const FibonacciSphere: React.FC = () => {
     const raycaster = raycasterRef.current!;
     raycaster.setFromCamera(mouseNdcRef.current, cameraRef.current);
     const intersects = raycaster.intersectObjects(sphereGroupRef.current.children, true);
-    const hitSelected = intersects.find(i => i.object === selectedPlaneRef.current?.mesh);
+    const hitSelected = intersects.find((i: THREE.Intersection) => i.object === selectedPlaneRef.current?.mesh);
     if (!hitSelected) {
       handleClose();
     }

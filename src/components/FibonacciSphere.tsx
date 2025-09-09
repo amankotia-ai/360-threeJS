@@ -264,13 +264,6 @@ const FibonacciSphere: React.FC = () => {
 
       const tl = gsap.timeline();
 
-      // Dim other planes
-      planesRef.current.forEach(p => {
-        if (p.mesh !== mesh) {
-          tl.to((p.mesh.material as any), { opacity: 0.12, duration: 0.5, ease: 'power2.out' }, 0);
-        }
-      });
-
       // Ensure selected renders on top while modal is open
       const selectedMat = mesh.material as THREE.Material & { depthTest?: boolean; depthWrite?: boolean };
       selectedMat.depthTest = false;
@@ -490,13 +483,6 @@ const FibonacciSphere: React.FC = () => {
         isModalOpenRef.current = false;
         setIsModalOpen(false);
         selectedPlaneRef.current = null;
-      }
-    });
-
-    // Restore others' opacity
-    planesRef.current.forEach(p => {
-      if (p.mesh !== mesh) {
-        tl.to((p.mesh.material as any), { opacity: 1, duration: 0.4, ease: 'power2.out' }, 0);
       }
     });
 

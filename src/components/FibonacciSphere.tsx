@@ -29,8 +29,6 @@ const FibonacciSphere: React.FC = () => {
   const selectedPlaneRef = useRef<PlaneData | null>(null);
   const isModalOpenRef = useRef(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const overlayRef = useRef<HTMLDivElement | null>(null);
-
   // Touch state
   const isTouchingRef = useRef(false);
   const lastTouchXRef = useRef(0);
@@ -99,6 +97,22 @@ const FibonacciSphere: React.FC = () => {
     return points;
   };
 
+  // Cylindrical rows/columns layout around Y-axis (images placed in rows)
+  const cylindricalGrid = (rows: number, cols: number, radius: number, verticalSpacing: number) => {
+    const positions: THREE.Vector3[] = [];
+    const yStart = -((rows - 1) * verticalSpacing) / 2;
+    for (let r = 0; r < rows; r++) {
+      const y = yStart + r * verticalSpacing;
+      for (let c = 0; c < cols; c++) {
+        const angle = (c / cols) * Math.PI * 2; // around Y-axis
+        const x = Math.sin(angle) * radius;
+        const z = Math.cos(angle) * radius;
+        positions.push(new THREE.Vector3(x, y, z));
+      }
+    }
+    return positions;
+  };
+
   useEffect(() => {
     if (!mountRef.current) return;
 
@@ -125,6 +139,10 @@ const FibonacciSphere: React.FC = () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Ensure correct color output (prevents washed-out/grey look)
+    // For three@0.180+ use colorSpace; tone mapping off
+    (renderer as any).outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -145,35 +163,32 @@ const FibonacciSphere: React.FC = () => {
     scene.add(sphereGroup);
     sphereGroupRef.current = sphereGroup;
 
-    // Create planes with fibonacci distribution
+    // Create planes with fibonacci distribution (original globe view)
     const sphereRadius = 15;
     const positions = fibonacciSphere(36, sphereRadius);
     const planes: PlaneData[] = [];
 
     positions.forEach((position, index) => {
       const geometry = new THREE.PlaneGeometry(2.5, 3.5);
-      
-      // Create material with visible fallback color
-      const material = new THREE.MeshLambertMaterial({ 
-        color: new THREE.Color().setHSL(Math.random(), 0.7, 0.6),
+      // Use MeshBasicMaterial so textures are not affected by lighting/reflection
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
         transparent: true,
         opacity: 0,
         side: THREE.DoubleSide
       });
-      
       const plane = new THREE.Mesh(geometry, material);
       
       // Position the plane
       plane.position.copy(position);
       
-      // Make plane look towards center
+      // Make plane look towards center and keep upright (no random z-tilt)
+      plane.up.set(0, 1, 0);
       plane.lookAt(0, 0, 0);
       
-      // Add some random rotation for natural look
-      plane.rotation.z += (Math.random() - 0.5) * 0.3;
-      
-      plane.castShadow = true;
-      plane.receiveShadow = true;
+      // Disable shadows
+      plane.castShadow = false;
+      plane.receiveShadow = false;
       
       sphereGroup.add(plane);
       
@@ -185,26 +200,21 @@ const FibonacciSphere: React.FC = () => {
       };
       planes.push(planeData);
 
-      // Load texture asynchronously
       const loader = new THREE.TextureLoader();
       loader.load(
         imageUrls[index % imageUrls.length],
         (texture: THREE.Texture) => {
           texture.minFilter = THREE.LinearFilter;
-          material.color.setHex(0xffffff);
-          material.map = texture;
+          (texture as any).colorSpace = THREE.SRGBColorSpace;
+          (material as THREE.MeshBasicMaterial).map = texture;
           material.needsUpdate = true;
-          // Capture natural aspect ratio once image is available
           const img = texture.image as HTMLImageElement | { width: number; height: number } | undefined;
           if (img && (img as any).width && (img as any).height) {
             planeData.imageAspect = (img as any).width / (img as any).height;
           }
         },
         undefined,
-        (error: unknown) => {
-          console.warn('Failed to load texture:', error);
-          // Keep the colorful fallback
-        }
+        () => {}
       );
     });
 
@@ -243,8 +253,8 @@ const FibonacciSphere: React.FC = () => {
       const distanceToCenter = cam.position.distanceTo(groupWorldCenter);
       const worldHeight = 2 * distanceToCenter * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
       const worldWidth = worldHeight * cam.aspect;
-      const baseWidthFraction = 0.3;
-      const baseHeightFraction = 0.3;
+      const baseWidthFraction = 0.6; // desktop: 2x previous size
+      const baseHeightFraction = 0.6; // desktop: 2x previous size
       const desiredWidthFraction = isTouchDevice() ? Math.min(0.9, baseWidthFraction * 3) : baseWidthFraction;
       const desiredHeightFraction = isTouchDevice() ? Math.min(0.9, baseHeightFraction * 3) : baseHeightFraction;
       const maxW = worldWidth * desiredWidthFraction;
@@ -264,6 +274,13 @@ const FibonacciSphere: React.FC = () => {
 
       const tl = gsap.timeline();
 
+      // Dim other planes slightly
+      planesRef.current.forEach(p => {
+        if (p.mesh !== mesh) {
+          tl.to(p.mesh.material as any, { opacity: 0.4, duration: 0.4, ease: 'power2.out' }, 0);
+        }
+      });
+
       // Ensure selected renders on top while modal is open
       const selectedMat = mesh.material as THREE.Material & { depthTest?: boolean; depthWrite?: boolean };
       selectedMat.depthTest = false;
@@ -274,20 +291,20 @@ const FibonacciSphere: React.FC = () => {
       tl.to(mesh.position, { x: targetLocalPos.x, y: targetLocalPos.y, z: targetLocalPos.z, duration: 1.0, ease: 'power3.inOut' }, 0);
       tl.to(mesh.scale, { x: xScale, y: yScale, z: 1, duration: 1.0, ease: 'power3.inOut' }, 0);
 
-      // Simple angle correction to face camera without flip
+      // Rotate to face the camera (appear flat) with shortest-path slerp to avoid flip
       const startQuat = mesh.quaternion.clone();
       const lookAtMatrix = new THREE.Matrix4();
       lookAtMatrix.lookAt(targetWorldPos.clone(), cam.position.clone(), new THREE.Vector3(0, 1, 0));
       const targetWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
       const parentWorldQuat = new THREE.Quaternion();
-      mesh.parent && mesh.parent.getWorldQuaternion(parentWorldQuat);
+      if (mesh.parent) mesh.parent.getWorldQuaternion(parentWorldQuat);
       let targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
       if (startQuat.dot(targetLocalQuat) < 0) targetLocalQuat.set(-targetLocalQuat.x, -targetLocalQuat.y, -targetLocalQuat.z, -targetLocalQuat.w);
       const q = { t: 0 };
       tl.to(q, {
         t: 1,
         duration: 1.0,
-        ease: 'power2.out',
+        ease: 'power2.inOut',
         onUpdate: () => {
           mesh.quaternion.copy(startQuat).slerp(targetLocalQuat, q.t);
         }
@@ -335,8 +352,21 @@ const FibonacciSphere: React.FC = () => {
       }
     };
 
-    // Click handler for selecting planes (desktop)
+    // Click handler (desktop). If modal is open, close when clicking outside.
     const handleClick = (event: MouseEvent) => {
+      if (isModalOpenRef.current && cameraRef.current && rendererRef.current && sphereGroupRef.current) {
+        const rect = rendererRef.current.domElement.getBoundingClientRect();
+        mouseNdcRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseNdcRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        const raycaster = raycasterRef.current!;
+        raycaster.setFromCamera(mouseNdcRef.current, cameraRef.current);
+        const intersects = raycaster.intersectObjects(sphereGroupRef.current.children, true);
+        const hitSelected = intersects.find((i: THREE.Intersection) => i.object === selectedPlaneRef.current?.mesh);
+        if (!hitSelected) {
+          handleClose();
+        }
+        return;
+      }
       openAtClient(event.clientX, event.clientY);
     };
 
@@ -453,21 +483,6 @@ const FibonacciSphere: React.FC = () => {
     }
   };
 
-  // Overlay click: close when clicking outside the selected mesh
-  const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isModalOpenRef.current || !rendererRef.current || !cameraRef.current || !sphereGroupRef.current) return;
-    const rect = rendererRef.current.domElement.getBoundingClientRect();
-    mouseNdcRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseNdcRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    const raycaster = raycasterRef.current!;
-    raycaster.setFromCamera(mouseNdcRef.current, cameraRef.current);
-    const intersects = raycaster.intersectObjects(sphereGroupRef.current.children, true);
-    const hitSelected = intersects.find((i: THREE.Intersection) => i.object === selectedPlaneRef.current?.mesh);
-    if (!hitSelected) {
-      handleClose();
-    }
-  };
-
   const handleClose = () => {
     if (!selectedPlaneRef.current) return;
     const planeData = selectedPlaneRef.current;
@@ -475,7 +490,6 @@ const FibonacciSphere: React.FC = () => {
 
     const tl = gsap.timeline({
       onComplete: () => {
-        // Restore material and flags
         const mat = mesh.material as THREE.Material & { depthTest?: boolean; depthWrite?: boolean };
         mat.depthTest = true;
         mat.depthWrite = true;
@@ -486,23 +500,22 @@ const FibonacciSphere: React.FC = () => {
       }
     });
 
+    // Restore other planes' opacity
+    planesRef.current.forEach(p => {
+      if (p.mesh !== mesh) {
+        tl.to(p.mesh.material as any, { opacity: 1, duration: 0.3, ease: 'power2.out' }, 0);
+      }
+    });
+
     // Animate back to original position and scale
     tl.to(mesh.position, { x: planeData.originalPosition.x, y: planeData.originalPosition.y, z: planeData.originalPosition.z, duration: 0.9, ease: 'power3.inOut' }, 0);
     tl.to(mesh.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'power3.inOut' }, 0);
-
-    // Simple angle correction back to the original rotation (no flip)
+    // Rotate back to the original rotation smoothly with shortest-path slerp
     const startQuat = mesh.quaternion.clone();
     let targetQuat = new THREE.Quaternion().setFromEuler(planeData.originalRotation);
     if (startQuat.dot(targetQuat) < 0) targetQuat.set(-targetQuat.x, -targetQuat.y, -targetQuat.z, -targetQuat.w);
     const q = { t: 0 };
-    tl.to(q, {
-      t: 1,
-      duration: 0.9,
-      ease: 'power2.out',
-      onUpdate: () => {
-        mesh.quaternion.copy(startQuat).slerp(targetQuat, q.t);
-      }
-    }, 0);
+    tl.to(q, { t: 1, duration: 0.9, ease: 'power2.inOut', onUpdate: () => { mesh.quaternion.copy(startQuat).slerp(targetQuat, q.t); } }, 0);
   };
 
   return (
@@ -539,10 +552,8 @@ const FibonacciSphere: React.FC = () => {
         </div>
       )}
 
-      {/* Modal overlay: click outside image to close */}
-      {isModalOpen && (
-        <div ref={overlayRef} onClick={handleOverlayClick} className="absolute inset-0 z-20 bg-transparent" />
-      )}
+      {/* Removed overlay div to ensure nothing overlays images */}
+      {false && isModalOpen && (<div className="absolute inset-0 z-20" />)}
 
       {/* Navigation */}
       {isRevealed && (

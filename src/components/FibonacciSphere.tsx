@@ -37,45 +37,21 @@ const FibonacciSphere: React.FC = () => {
   const touchStartYRef = useRef(0);
   const touchStartTimeRef = useRef(0);
 
-  // Sample images for the planes (using placeholder URLs)
-  const imageUrls = [
-    'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184293/pexels-photo-3184293.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184294/pexels-photo-3184294.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184295/pexels-photo-3184295.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184296/pexels-photo-3184296.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184297/pexels-photo-3184297.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184298/pexels-photo-3184298.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184299/pexels-photo-3184299.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184300/pexels-photo-3184300.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184301/pexels-photo-3184301.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184302/pexels-photo-3184302.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184303/pexels-photo-3184303.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184304/pexels-photo-3184304.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184305/pexels-photo-3184305.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184306/pexels-photo-3184306.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184307/pexels-photo-3184307.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184308/pexels-photo-3184308.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184309/pexels-photo-3184309.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184310/pexels-photo-3184310.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184311/pexels-photo-3184311.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184312/pexels-photo-3184312.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184313/pexels-photo-3184313.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184314/pexels-photo-3184314.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184315/pexels-photo-3184315.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184316/pexels-photo-3184316.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184317/pexels-photo-3184317.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184318/pexels-photo-3184318.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184319/pexels-photo-3184319.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184320/pexels-photo-3184320.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184321/pexels-photo-3184321.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184322/pexels-photo-3184322.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184323/pexels-photo-3184323.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184324/pexels-photo-3184324.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184325/pexels-photo-3184325.jpeg?auto=compress&cs=tinysrgb&w=400',
-    'https://images.pexels.com/photos/3184326/pexels-photo-3184326.jpeg?auto=compress&cs=tinysrgb&w=400'
+  // Images available in the public folder (served at root)
+  const publicImageUrls = [
+    '/Frame 633478.webp',
+    '/Frame 633479.webp',
+    '/Frame 633481.webp',
+    '/Frame 633482.webp',
+    '/Frame 633483.webp',
+    '/Frame 633496.webp',
+    '/Frame 633499.webp',
+    '/Frame 633500.webp',
+    '/Frame 633501.webp'
   ];
+  // Local image for the middle row (equator) of the sphere
+  const middleRowImageUrl = '/Frame 633501.webp';
+  const otherPublicImageUrls = publicImageUrls.filter(u => u !== middleRowImageUrl);
 
   // Fibonacci sphere distribution
   const fibonacciSphere = (samples: number, radius: number) => {
@@ -97,21 +73,7 @@ const FibonacciSphere: React.FC = () => {
     return points;
   };
 
-  // Cylindrical rows/columns layout around Y-axis (images placed in rows)
-  const cylindricalGrid = (rows: number, cols: number, radius: number, verticalSpacing: number) => {
-    const positions: THREE.Vector3[] = [];
-    const yStart = -((rows - 1) * verticalSpacing) / 2;
-    for (let r = 0; r < rows; r++) {
-      const y = yStart + r * verticalSpacing;
-      for (let c = 0; c < cols; c++) {
-        const angle = (c / cols) * Math.PI * 2; // around Y-axis
-        const x = Math.sin(angle) * radius;
-        const z = Math.cos(angle) * radius;
-        positions.push(new THREE.Vector3(x, y, z));
-      }
-    }
-    return positions;
-  };
+  // (removed unused cylindrical grid helper)
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -137,6 +99,7 @@ const FibonacciSphere: React.FC = () => {
       alpha: true 
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure correct color output (prevents washed-out/grey look)
@@ -175,16 +138,16 @@ const FibonacciSphere: React.FC = () => {
         color: 0xffffff,
         transparent: true,
         opacity: 0,
-        side: THREE.DoubleSide
+        side: THREE.FrontSide
       });
       const plane = new THREE.Mesh(geometry, material);
       
       // Position the plane
       plane.position.copy(position);
       
-      // Make plane look towards center and keep upright (no random z-tilt)
+      // Initially face the camera and keep upright
       plane.up.set(0, 1, 0);
-      plane.lookAt(0, 0, 0);
+      plane.lookAt(camera.position);
       
       // Disable shadows
       plane.castShadow = false;
@@ -201,10 +164,18 @@ const FibonacciSphere: React.FC = () => {
       planes.push(planeData);
 
       const loader = new THREE.TextureLoader();
+      // Use the local image for planes near the equator (middle row)
+      const isMiddleRow = Math.abs(position.y) <= sphereRadius * 0.12;
+      const urlToLoad = isMiddleRow ? middleRowImageUrl : otherPublicImageUrls[index % otherPublicImageUrls.length];
       loader.load(
-        imageUrls[index % imageUrls.length],
+        urlToLoad,
         (texture: THREE.Texture) => {
-          texture.minFilter = THREE.LinearFilter;
+          // Sharper sampling settings
+          texture.generateMipmaps = true;
+          texture.minFilter = THREE.LinearMipmapLinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          // Max anisotropy for oblique viewing angles
+          texture.anisotropy = (rendererRef.current?.capabilities.getMaxAnisotropy?.() || 8);
           (texture as any).colorSpace = THREE.SRGBColorSpace;
           (material as THREE.MeshBasicMaterial).map = texture;
           material.needsUpdate = true;
@@ -291,24 +262,7 @@ const FibonacciSphere: React.FC = () => {
       tl.to(mesh.position, { x: targetLocalPos.x, y: targetLocalPos.y, z: targetLocalPos.z, duration: 1.0, ease: 'power3.inOut' }, 0);
       tl.to(mesh.scale, { x: xScale, y: yScale, z: 1, duration: 1.0, ease: 'power3.inOut' }, 0);
 
-      // Rotate to face the camera (appear flat) with shortest-path slerp to avoid flip
-      const startQuat = mesh.quaternion.clone();
-      const lookAtMatrix = new THREE.Matrix4();
-      lookAtMatrix.lookAt(targetWorldPos.clone(), cam.position.clone(), new THREE.Vector3(0, 1, 0));
-      const targetWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
-      const parentWorldQuat = new THREE.Quaternion();
-      if (mesh.parent) mesh.parent.getWorldQuaternion(parentWorldQuat);
-      let targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
-      if (startQuat.dot(targetLocalQuat) < 0) targetLocalQuat.set(-targetLocalQuat.x, -targetLocalQuat.y, -targetLocalQuat.z, -targetLocalQuat.w);
-      const q = { t: 0 };
-      tl.to(q, {
-        t: 1,
-        duration: 1.0,
-        ease: 'power2.inOut',
-        onUpdate: () => {
-          mesh.quaternion.copy(startQuat).slerp(targetLocalQuat, q.t);
-        }
-      }, 0);
+      // No flip/rotation on open — keep current orientation
     };
 
     // Mouse move handler (desktop)
@@ -394,6 +348,23 @@ const FibonacciSphere: React.FC = () => {
         sphereGroupRef.current.rotation.y = currentRotationRef.current.y;
       }
       
+      // Billboard effect
+      if (cameraRef.current) {
+        const camPos = cameraRef.current.position;
+        // Selected plane always faces camera (during open/close and while enlarged)
+        if (selectedPlaneRef.current) {
+          selectedPlaneRef.current.mesh.lookAt(camPos);
+        }
+        // Other planes face camera only when no modal is open
+        if (!isModalOpenRef.current) {
+          planesRef.current.forEach(p => {
+            if (!selectedPlaneRef.current || p.mesh !== selectedPlaneRef.current.mesh) {
+              p.mesh.lookAt(camPos);
+            }
+          });
+        }
+      }
+      
       // Subtle floating animation when not revealed
       if (!isAnimatedRef.current && sphereGroupRef.current) {
         const time = Date.now() * 0.0008;
@@ -411,6 +382,7 @@ const FibonacciSphere: React.FC = () => {
         cameraRef.current.aspect = window.innerWidth / window.innerHeight;
         cameraRef.current.updateProjectionMatrix();
         rendererRef.current.setSize(window.innerWidth, window.innerHeight);
+        rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       }
     };
 
@@ -510,12 +482,7 @@ const FibonacciSphere: React.FC = () => {
     // Animate back to original position and scale
     tl.to(mesh.position, { x: planeData.originalPosition.x, y: planeData.originalPosition.y, z: planeData.originalPosition.z, duration: 0.9, ease: 'power3.inOut' }, 0);
     tl.to(mesh.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'power3.inOut' }, 0);
-    // Rotate back to the original rotation smoothly with shortest-path slerp
-    const startQuat = mesh.quaternion.clone();
-    let targetQuat = new THREE.Quaternion().setFromEuler(planeData.originalRotation);
-    if (startQuat.dot(targetQuat) < 0) targetQuat.set(-targetQuat.x, -targetQuat.y, -targetQuat.z, -targetQuat.w);
-    const q = { t: 0 };
-    tl.to(q, { t: 1, duration: 0.9, ease: 'power2.inOut', onUpdate: () => { mesh.quaternion.copy(startQuat).slerp(targetQuat, q.t); } }, 0);
+    // No flip/rotation on close — keep current orientation
   };
 
   return (

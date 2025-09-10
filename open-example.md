@@ -29,8 +29,6 @@ const FibonacciSphere: React.FC = () => {
   const selectedPlaneRef = useRef<PlaneData | null>(null);
   const isModalOpenRef = useRef(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const billboardActiveRef = useRef(false);
-  const billboardTickerRef = useRef<((time: number) => void) | null>(null);
   // Touch state
   const isTouchingRef = useRef(false);
   const lastTouchXRef = useRef(0);
@@ -39,31 +37,45 @@ const FibonacciSphere: React.FC = () => {
   const touchStartYRef = useRef(0);
   const touchStartTimeRef = useRef(0);
 
-  // Layout mode and grid panning
-  const [layoutMode, setLayoutMode] = useState<'sphere' | 'grid'>('sphere');
-  const layoutModeRef = useRef<'sphere' | 'grid'>('sphere');
-  useEffect(() => { layoutModeRef.current = layoutMode; }, [layoutMode]);
-  const isPanningRef = useRef(false);
-  const lastPanXRef = useRef(0);
-  const lastPanYRef = useRef(0);
-
-  type LayoutItem = { position: THREE.Vector3; quaternion: THREE.Quaternion; scale: number };
-
-  // Images available in the public folder (served at root)
-  const publicImageUrls = [
-    '/Frame 633478.webp',
-    '/Frame 633479.webp',
-    '/Frame 633481.webp',
-    '/Frame 633482.webp',
-    '/Frame 633483.webp',
-    '/Frame 633496.webp',
-    '/Frame 633499.webp',
-    '/Frame 633500.webp',
-    '/Frame 633501.webp'
+  // Sample images for the planes (using placeholder URLs)
+  const imageUrls = [
+    'https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184293/pexels-photo-3184293.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184294/pexels-photo-3184294.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184295/pexels-photo-3184295.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184296/pexels-photo-3184296.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184297/pexels-photo-3184297.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184298/pexels-photo-3184298.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184299/pexels-photo-3184299.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184300/pexels-photo-3184300.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184301/pexels-photo-3184301.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184302/pexels-photo-3184302.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184303/pexels-photo-3184303.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184304/pexels-photo-3184304.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184305/pexels-photo-3184305.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184306/pexels-photo-3184306.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184307/pexels-photo-3184307.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184308/pexels-photo-3184308.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184309/pexels-photo-3184309.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184310/pexels-photo-3184310.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184311/pexels-photo-3184311.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184312/pexels-photo-3184312.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184313/pexels-photo-3184313.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184314/pexels-photo-3184314.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184315/pexels-photo-3184315.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184316/pexels-photo-3184316.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184317/pexels-photo-3184317.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184318/pexels-photo-3184318.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184319/pexels-photo-3184319.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184320/pexels-photo-3184320.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184321/pexels-photo-3184321.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184322/pexels-photo-3184322.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184323/pexels-photo-3184323.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184324/pexels-photo-3184324.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184325/pexels-photo-3184325.jpeg?auto=compress&cs=tinysrgb&w=400',
+    'https://images.pexels.com/photos/3184326/pexels-photo-3184326.jpeg?auto=compress&cs=tinysrgb&w=400'
   ];
-  // Local image for the middle row (equator) of the sphere
-  const middleRowImageUrl = '/Frame 633501.webp';
-  const otherPublicImageUrls = publicImageUrls.filter(u => u !== middleRowImageUrl);
 
   // Fibonacci sphere distribution
   const fibonacciSphere = (samples: number, radius: number) => {
@@ -85,7 +97,21 @@ const FibonacciSphere: React.FC = () => {
     return points;
   };
 
-  // (removed unused cylindrical grid helper)
+  // Cylindrical rows/columns layout around Y-axis (images placed in rows)
+  const cylindricalGrid = (rows: number, cols: number, radius: number, verticalSpacing: number) => {
+    const positions: THREE.Vector3[] = [];
+    const yStart = -((rows - 1) * verticalSpacing) / 2;
+    for (let r = 0; r < rows; r++) {
+      const y = yStart + r * verticalSpacing;
+      for (let c = 0; c < cols; c++) {
+        const angle = (c / cols) * Math.PI * 2; // around Y-axis
+        const x = Math.sin(angle) * radius;
+        const z = Math.cos(angle) * radius;
+        positions.push(new THREE.Vector3(x, y, z));
+      }
+    }
+    return positions;
+  };
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -111,7 +137,6 @@ const FibonacciSphere: React.FC = () => {
       alpha: true 
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure correct color output (prevents washed-out/grey look)
@@ -176,18 +201,10 @@ const FibonacciSphere: React.FC = () => {
       planes.push(planeData);
 
       const loader = new THREE.TextureLoader();
-      // Use the local image for planes near the equator (middle row)
-      const isMiddleRow = Math.abs(position.y) <= sphereRadius * 0.12;
-      const urlToLoad = isMiddleRow ? middleRowImageUrl : otherPublicImageUrls[index % otherPublicImageUrls.length];
       loader.load(
-        urlToLoad,
+        imageUrls[index % imageUrls.length],
         (texture: THREE.Texture) => {
-          // Sharper sampling settings
-          texture.generateMipmaps = true;
-          texture.minFilter = THREE.LinearMipmapLinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          // Max anisotropy for oblique viewing angles
-          texture.anisotropy = (rendererRef.current?.capabilities.getMaxAnisotropy?.() || 8);
+          texture.minFilter = THREE.LinearFilter;
           (texture as any).colorSpace = THREE.SRGBColorSpace;
           (material as THREE.MeshBasicMaterial).map = texture;
           material.needsUpdate = true;
@@ -223,7 +240,6 @@ const FibonacciSphere: React.FC = () => {
       selectedPlaneRef.current = planeData;
       isModalOpenRef.current = true;
       setIsModalOpen(true);
-      billboardActiveRef.current = false;
 
       const cam = cameraRef.current;
       const group = sphereGroupRef.current;
@@ -232,8 +248,6 @@ const FibonacciSphere: React.FC = () => {
       const groupWorldCenter = group.getWorldPosition(new THREE.Vector3());
       const targetWorldPos = groupWorldCenter.clone();
       const targetLocalPos = group.worldToLocal(targetWorldPos.clone());
-
-      // (Removed direct lookAt pre-align; we precompute a local quaternion below for stability)
 
       // Compute uniform scale to fit within both width and height fractions (contain)
       const distanceToCenter = cam.position.distanceTo(groupWorldCenter);
@@ -258,7 +272,7 @@ const FibonacciSphere: React.FC = () => {
       const xScale = targetW / baseW;
       const yScale = targetH / baseH;
 
-      const tl = gsap.timeline({ paused: true });
+      const tl = gsap.timeline();
 
       // Dim other planes slightly
       planesRef.current.forEach(p => {
@@ -277,39 +291,29 @@ const FibonacciSphere: React.FC = () => {
       tl.to(mesh.position, { x: targetLocalPos.x, y: targetLocalPos.y, z: targetLocalPos.z, duration: 1.0, ease: 'power3.inOut' }, 0);
       tl.to(mesh.scale, { x: xScale, y: yScale, z: 1, duration: 1.0, ease: 'power3.inOut' }, 0);
 
-      // Smoothly rotate to face the camera using shortest-path quaternion slerp (no billboard)
-      if (cam) {
-        const startQuat = mesh.quaternion.clone();
-        const lookAtMatrix = new THREE.Matrix4();
-        lookAtMatrix.lookAt(targetWorldPos.clone(), cam.position.clone(), new THREE.Vector3(0, 1, 0));
-        const targetWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
-        const parentWorldQuat = new THREE.Quaternion();
-        if (mesh.parent) mesh.parent.getWorldQuaternion(parentWorldQuat);
-        let targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
-        // Rotate an extra 180deg around Y so the plane's +Z (front) faces the camera (prevents mirrored backside)
-        const flipQuatY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-        targetLocalQuat.multiply(flipQuatY);
-        if (startQuat.dot(targetLocalQuat) < 0) {
-          targetLocalQuat.set(-targetLocalQuat.x, -targetLocalQuat.y, -targetLocalQuat.z, -targetLocalQuat.w);
+      // Rotate to face the camera (appear flat) with shortest-path slerp to avoid flip
+      const startQuat = mesh.quaternion.clone();
+      const lookAtMatrix = new THREE.Matrix4();
+      lookAtMatrix.lookAt(targetWorldPos.clone(), cam.position.clone(), new THREE.Vector3(0, 1, 0));
+      const targetWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
+      const parentWorldQuat = new THREE.Quaternion();
+      if (mesh.parent) mesh.parent.getWorldQuaternion(parentWorldQuat);
+      let targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
+      if (startQuat.dot(targetLocalQuat) < 0) targetLocalQuat.set(-targetLocalQuat.x, -targetLocalQuat.y, -targetLocalQuat.z, -targetLocalQuat.w);
+      const q = { t: 0 };
+      tl.to(q, {
+        t: 1,
+        duration: 1.0,
+        ease: 'power2.inOut',
+        onUpdate: () => {
+          mesh.quaternion.copy(startQuat).slerp(targetLocalQuat, q.t);
         }
-        const q = { t: 0 } as { t: number };
-        tl.to(q, {
-          t: 1,
-          duration: 1.0,
-          ease: 'power2.inOut',
-          onUpdate: () => {
-            mesh.quaternion.copy(startQuat).slerp(targetLocalQuat, q.t);
-          }
-        }, 0);
-      }
-
-      // Play the open timeline
-      tl.play(0);
+      }, 0);
     };
 
     // Mouse move handler (desktop)
     const handleMouseMove = (event: MouseEvent) => {
-      if (!isAnimatedRef.current || isModalOpenRef.current || layoutModeRef.current !== 'sphere') return;
+      if (!isAnimatedRef.current || isModalOpenRef.current) return;
       mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
       targetRotationRef.current.y = mouseRef.current.x * Math.PI * 0.5;
       targetRotationRef.current.x = 0;
@@ -317,7 +321,7 @@ const FibonacciSphere: React.FC = () => {
 
     // Touch handlers (mobile swipe + tap-to-open)
     const handleTouchStart = (e: TouchEvent) => {
-      if (!isAnimatedRef.current || isModalOpenRef.current || layoutModeRef.current !== 'sphere') return;
+      if (!isAnimatedRef.current || isModalOpenRef.current) return;
       isTouchingRef.current = true;
       const t = e.touches[0];
       lastTouchXRef.current = t.clientX;
@@ -327,7 +331,7 @@ const FibonacciSphere: React.FC = () => {
       touchStartTimeRef.current = performance.now();
     };
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isTouchingRef.current || !isAnimatedRef.current || isModalOpenRef.current || layoutModeRef.current !== 'sphere') return;
+      if (!isTouchingRef.current || !isAnimatedRef.current || isModalOpenRef.current) return;
       const t = e.touches[0];
       const dx = t.clientX - lastTouchXRef.current;
       lastTouchXRef.current = t.clientX;
@@ -337,7 +341,7 @@ const FibonacciSphere: React.FC = () => {
       targetRotationRef.current.x = 0;
     };
     const handleTouchEnd = () => {
-      if (!isAnimatedRef.current || layoutModeRef.current !== 'sphere') return;
+      if (!isAnimatedRef.current) return;
       const dt = performance.now() - touchStartTimeRef.current;
       const dx = Math.abs(lastTouchXRef.current - touchStartXRef.current);
       const dy = Math.abs(lastTouchYRef.current - touchStartYRef.current);
@@ -350,7 +354,6 @@ const FibonacciSphere: React.FC = () => {
 
     // Click handler (desktop). If modal is open, close when clicking outside.
     const handleClick = (event: MouseEvent) => {
-      if (layoutModeRef.current !== 'sphere' && !isModalOpenRef.current) return;
       if (isModalOpenRef.current && cameraRef.current && rendererRef.current && sphereGroupRef.current) {
         const rect = rendererRef.current.domElement.getBoundingClientRect();
         mouseNdcRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -373,70 +376,6 @@ const FibonacciSphere: React.FC = () => {
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
     renderer.domElement.addEventListener('click', handleClick);
 
-    // Grid panning handlers (mouse)
-    const handleMouseDownPan = (e: MouseEvent) => {
-      if (!isAnimatedRef.current || layoutModeRef.current !== 'grid') return;
-      isPanningRef.current = true;
-      lastPanXRef.current = e.clientX;
-      lastPanYRef.current = e.clientY;
-    };
-    const handleMouseMovePan = (e: MouseEvent) => {
-      if (!isPanningRef.current || !isAnimatedRef.current || layoutModeRef.current !== 'grid' || !sphereGroupRef.current || !cameraRef.current || !rendererRef.current) return;
-      const dx = e.clientX - lastPanXRef.current;
-      const dy = e.clientY - lastPanYRef.current;
-      lastPanXRef.current = e.clientX;
-      lastPanYRef.current = e.clientY;
-      const cam = cameraRef.current;
-      const distance = Math.abs(cam.position.z - 0);
-      const worldHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-      const worldWidth = worldHeight * cam.aspect;
-      const el = rendererRef.current.domElement;
-      const scaleX = worldWidth / el.clientWidth;
-      const scaleY = worldHeight / el.clientHeight;
-      sphereGroupRef.current.position.x += dx * scaleX;
-      sphereGroupRef.current.position.y -= dy * scaleY;
-    };
-    const handleMouseUpPan = () => { isPanningRef.current = false; };
-
-    renderer.domElement.addEventListener('mousedown', handleMouseDownPan);
-    window.addEventListener('mousemove', handleMouseMovePan);
-    window.addEventListener('mouseup', handleMouseUpPan);
-
-    // Grid panning handlers (touch)
-    const handleTouchStartPan = (e: TouchEvent) => {
-      if (!isAnimatedRef.current || layoutModeRef.current !== 'grid') return;
-      if (e.touches.length !== 1) return;
-      e.preventDefault();
-      const t = e.touches[0];
-      isPanningRef.current = true;
-      lastPanXRef.current = t.clientX;
-      lastPanYRef.current = t.clientY;
-    };
-    const handleTouchMovePan = (e: TouchEvent) => {
-      if (!isPanningRef.current || !isAnimatedRef.current || layoutModeRef.current !== 'grid' || !sphereGroupRef.current || !cameraRef.current || !rendererRef.current) return;
-      if (e.touches.length !== 1) return;
-      e.preventDefault();
-      const t = e.touches[0];
-      const dx = t.clientX - lastPanXRef.current;
-      const dy = t.clientY - lastPanYRef.current;
-      lastPanXRef.current = t.clientX;
-      lastPanYRef.current = t.clientY;
-      const cam = cameraRef.current;
-      const distance = Math.abs(cam.position.z - 0);
-      const worldHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-      const worldWidth = worldHeight * cam.aspect;
-      const el = rendererRef.current.domElement;
-      const scaleX = worldWidth / el.clientWidth;
-      const scaleY = worldHeight / el.clientHeight;
-      sphereGroupRef.current.position.x += dx * scaleX;
-      sphereGroupRef.current.position.y -= dy * scaleY;
-    };
-    const handleTouchEndPan = () => { isPanningRef.current = false; };
-
-    renderer.domElement.addEventListener('touchstart', handleTouchStartPan as any, { passive: false } as any);
-    window.addEventListener('touchmove', handleTouchMovePan as any, { passive: false } as any);
-    window.addEventListener('touchend', handleTouchEndPan as any);
-
     // Animation loop
     const animate = () => {
       requestAnimationFrame(animate);
@@ -455,8 +394,6 @@ const FibonacciSphere: React.FC = () => {
         sphereGroupRef.current.rotation.y = currentRotationRef.current.y;
       }
       
-      // Billboarding handled by GSAP ticker to avoid conflicts with render loop
-      
       // Subtle floating animation when not revealed
       if (!isAnimatedRef.current && sphereGroupRef.current) {
         const time = Date.now() * 0.0008;
@@ -474,7 +411,6 @@ const FibonacciSphere: React.FC = () => {
         cameraRef.current.aspect = window.innerWidth / window.innerHeight;
         cameraRef.current.updateProjectionMatrix();
         rendererRef.current.setSize(window.innerWidth, window.innerHeight);
-        rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       }
     };
 
@@ -488,104 +424,12 @@ const FibonacciSphere: React.FC = () => {
       window.removeEventListener('touchmove', handleTouchMove as any);
       window.removeEventListener('touchend', handleTouchEnd as any);
       renderer.domElement.removeEventListener('click', handleClick);
-      renderer.domElement.removeEventListener('mousedown', handleMouseDownPan);
-      window.removeEventListener('mousemove', handleMouseMovePan);
-      window.removeEventListener('mouseup', handleMouseUpPan);
-      renderer.domElement.removeEventListener('touchstart', handleTouchStartPan as any);
-      window.removeEventListener('touchmove', handleTouchMovePan as any);
-      window.removeEventListener('touchend', handleTouchEndPan as any);
       if (mountRef.current && renderer.domElement) {
         mountRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
   }, []);
-
-  // Compute a flat grid layout facing the camera
-  const computeGridLayout = (cols = 9, gapX = 3.2, gapY = 4.4): LayoutItem[] => {
-    const planes = planesRef.current;
-    const count = planes.length;
-    const rows = Math.ceil(count / cols);
-    const startX = -((cols - 1) * gapX) / 2;
-    const startY = -((rows - 1) * gapY) / 2;
-    const layout: LayoutItem[] = [];
-
-    const cam = cameraRef.current;
-    const group = sphereGroupRef.current;
-    const parentWorldQuat = new THREE.Quaternion();
-    if (group) group.getWorldQuaternion(parentWorldQuat);
-    const camWorldQuat = new THREE.Quaternion();
-    if (cam) cam.getWorldQuaternion(camWorldQuat);
-    const flipY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-
-    for (let i = 0; i < count; i++) {
-      const c = i % cols;
-      const r = Math.floor(i / cols);
-      const localPos = new THREE.Vector3(startX + c * gapX, startY + r * gapY, 0);
-      const pos = localPos.clone();
-      let quat = new THREE.Quaternion();
-      if (cam && group) {
-        const invParent = parentWorldQuat.clone().invert();
-        const desiredWorldQuat = camWorldQuat.clone().multiply(flipY);
-        quat = invParent.multiply(desiredWorldQuat);
-      }
-      layout.push({ position: pos, quaternion: quat, scale: 1 });
-    }
-    return layout;
-  };
-
-  const morphToLayout = (layout: LayoutItem[], duration = 1.0, ease = 'power3.inOut') => {
-    const planes = planesRef.current;
-    planes.forEach((p, i) => {
-      const t = layout[i];
-      if (!t) return;
-      gsap.to(p.mesh.position, { x: t.position.x, y: t.position.y, z: t.position.z, duration, ease });
-      gsap.to(p.mesh.scale, { x: t.scale, y: t.scale, z: 1, duration, ease });
-      const startQuat = p.mesh.quaternion.clone();
-      const targetQuat = t.quaternion.clone();
-      if (startQuat.dot(targetQuat) < 0) targetQuat.set(-targetQuat.x, -targetQuat.y, -targetQuat.z, -targetQuat.w);
-      const q = { t: 0 } as { t: number };
-      gsap.to(q, {
-        t: 1,
-        duration,
-        ease,
-        onUpdate: () => { p.mesh.quaternion.copy(startQuat).slerp(targetQuat, q.t); }
-      });
-    });
-  };
-
-  const morphToGrid = () => {
-    if (!sphereGroupRef.current) return;
-    isPanningRef.current = false;
-    const grid = computeGridLayout();
-    gsap.to(sphereGroupRef.current.rotation, { x: 0, y: 0, z: 0, duration: 0.8, ease: 'power2.inOut' });
-    gsap.to(sphereGroupRef.current.position, { x: 0, y: 0, z: 0, duration: 0.8, ease: 'power2.inOut' });
-    morphToLayout(grid, 1.0, 'power3.inOut');
-    setLayoutMode('grid');
-  };
-
-  const morphToSphere = () => {
-    if (!sphereGroupRef.current) return;
-    isPanningRef.current = false;
-    const planes = planesRef.current;
-    const layout: LayoutItem[] = planes.map((p) => {
-      const quat = new THREE.Quaternion().setFromEuler(p.originalRotation);
-      return { position: p.originalPosition.clone(), quaternion: quat, scale: 1 };
-    });
-    gsap.to(sphereGroupRef.current.position, { x: 0, y: 0, z: 0, duration: 0.8, ease: 'power2.inOut' });
-    morphToLayout(layout, 1.0, 'power3.inOut');
-    setLayoutMode('sphere');
-  };
-
-  const handlePortfolioClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!isAnimatedRef.current || isModalOpenRef.current) return;
-    if (layoutModeRef.current === 'sphere') {
-      morphToGrid();
-    } else {
-      morphToSphere();
-    }
-  };
 
   const handleStart = () => {
     if (isAnimatedRef.current) return;
@@ -652,11 +496,6 @@ const FibonacciSphere: React.FC = () => {
         mesh.renderOrder = 0;
         isModalOpenRef.current = false;
         setIsModalOpen(false);
-        billboardActiveRef.current = false;
-        if (billboardTickerRef.current) {
-          gsap.ticker.remove(billboardTickerRef.current);
-          billboardTickerRef.current = null;
-        }
         selectedPlaneRef.current = null;
       }
     });
@@ -671,22 +510,12 @@ const FibonacciSphere: React.FC = () => {
     // Animate back to original position and scale
     tl.to(mesh.position, { x: planeData.originalPosition.x, y: planeData.originalPosition.y, z: planeData.originalPosition.z, duration: 0.9, ease: 'power3.inOut' }, 0);
     tl.to(mesh.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'power3.inOut' }, 0);
-
-    // Smoothly rotate back to original rotation using shortest-path slerp
+    // Rotate back to the original rotation smoothly with shortest-path slerp
     const startQuat = mesh.quaternion.clone();
     let targetQuat = new THREE.Quaternion().setFromEuler(planeData.originalRotation);
     if (startQuat.dot(targetQuat) < 0) targetQuat.set(-targetQuat.x, -targetQuat.y, -targetQuat.z, -targetQuat.w);
-    const q = { t: 0 } as { t: number };
-    tl.to(q, {
-      t: 1,
-      duration: 0.9,
-      ease: 'power2.inOut',
-      onUpdate: () => { mesh.quaternion.copy(startQuat).slerp(targetQuat, q.t); }
-    }, 0);
-    tl.add(() => {
-      // Ensure exact original orientation at the end to avoid residual precision error
-      mesh.rotation.copy(planeData.originalRotation);
-    }, 0.9);
+    const q = { t: 0 };
+    tl.to(q, { t: 1, duration: 0.9, ease: 'power2.inOut', onUpdate: () => { mesh.quaternion.copy(startQuat).slerp(targetQuat, q.t); } }, 0);
   };
 
   return (
@@ -733,7 +562,7 @@ const FibonacciSphere: React.FC = () => {
             <a href="#" className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium">
               Home
             </a>
-            <a href="#" onClick={handlePortfolioClick} className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium">
+            <a href="#" className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium">
               Portfolio
             </a>
             <a href="#" className="text-gray-600 hover:text-gray-900 transition-colors duration-200 font-medium">

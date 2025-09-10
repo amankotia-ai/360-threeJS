@@ -30,7 +30,6 @@ const FibonacciSphere: React.FC = () => {
   const isModalOpenRef = useRef(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const billboardActiveRef = useRef(false);
-  const billboardJustEnabledRef = useRef(false);
   const billboardTickerRef = useRef<((time: number) => void) | null>(null);
   // Touch state
   const isTouchingRef = useRef(false);
@@ -268,48 +267,34 @@ const FibonacciSphere: React.FC = () => {
       tl.to(mesh.position, { x: targetLocalPos.x, y: targetLocalPos.y, z: targetLocalPos.z, duration: 1.0, ease: 'power3.inOut' }, 0);
       tl.to(mesh.scale, { x: xScale, y: yScale, z: 1, duration: 1.0, ease: 'power3.inOut' }, 0);
 
-      // No flip/rotation on open — keep current orientation
-
-      // Pre-align orientation to face the camera using a stable local-space quaternion to avoid first-frame snap
+      // Smoothly rotate to face the camera using shortest-path quaternion slerp (no billboard)
       if (cam) {
+        const startQuat = mesh.quaternion.clone();
         const lookAtMatrix = new THREE.Matrix4();
-        const meshWorldPos = mesh.getWorldPosition(new THREE.Vector3());
-        lookAtMatrix.lookAt(meshWorldPos, cam.position.clone(), new THREE.Vector3(0, 1, 0));
+        lookAtMatrix.lookAt(targetWorldPos.clone(), cam.position.clone(), new THREE.Vector3(0, 1, 0));
         const targetWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
         const parentWorldQuat = new THREE.Quaternion();
         if (mesh.parent) mesh.parent.getWorldQuaternion(parentWorldQuat);
-        const targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
-        const flipQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-        mesh.quaternion.copy(targetLocalQuat.multiply(flipQuat));
+        let targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
+        // Rotate an extra 180deg around Y so the plane's +Z (front) faces the camera (prevents mirrored backside)
+        const flipQuatY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+        targetLocalQuat.multiply(flipQuatY);
+        if (startQuat.dot(targetLocalQuat) < 0) {
+          targetLocalQuat.set(-targetLocalQuat.x, -targetLocalQuat.y, -targetLocalQuat.z, -targetLocalQuat.w);
+        }
+        const q = { t: 0 } as { t: number };
+        tl.to(q, {
+          t: 1,
+          duration: 1.0,
+          ease: 'power2.inOut',
+          onUpdate: () => {
+            mesh.quaternion.copy(startQuat).slerp(targetLocalQuat, q.t);
+          }
+        }, 0);
       }
 
-      // Create a GSAP ticker-driven billboarding updater to avoid render loop conflicts
-      const createBillboardTicker = () => {
-        const updater = () => {
-          if (!billboardActiveRef.current || !cameraRef.current || !selectedPlaneRef.current) return;
-          const cam = cameraRef.current;
-          const mesh = selectedPlaneRef.current.mesh;
-          const lookAtMatrix = new THREE.Matrix4();
-          const meshWorldPos = mesh.getWorldPosition(new THREE.Vector3());
-          lookAtMatrix.lookAt(meshWorldPos, cam.position.clone(), new THREE.Vector3(0, 1, 0));
-          const targetWorldQuat = new THREE.Quaternion().setFromRotationMatrix(lookAtMatrix);
-          const parentWorldQuat = new THREE.Quaternion();
-          if (mesh.parent) mesh.parent.getWorldQuaternion(parentWorldQuat);
-          const targetLocalQuat = parentWorldQuat.clone().invert().multiply(targetWorldQuat);
-          const flipQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-          mesh.quaternion.copy(targetLocalQuat.multiply(flipQuat));
-        };
-        billboardTickerRef.current = updater;
-        gsap.ticker.add(updater);
-      };
-
-      // Start the timeline on the next frame and enable billboarding via GSAP ticker
-      requestAnimationFrame(() => {
-        billboardActiveRef.current = true;
-        billboardJustEnabledRef.current = true;
-        if (!billboardTickerRef.current) createBillboardTicker();
-        tl.play(0);
-      });
+      // Play the open timeline
+      tl.play(0);
     };
 
     // Mouse move handler (desktop)
@@ -516,23 +501,25 @@ const FibonacciSphere: React.FC = () => {
       }
     });
 
-    // Animate back to original position and scale, then hard-snap transform to eliminate drift
+    // Animate back to original position and scale
     tl.to(mesh.position, { x: planeData.originalPosition.x, y: planeData.originalPosition.y, z: planeData.originalPosition.z, duration: 0.9, ease: 'power3.inOut' }, 0);
     tl.to(mesh.scale, { x: 1, y: 1, z: 1, duration: 0.9, ease: 'power3.inOut' }, 0);
-    // Disable billboarding just before snapping back to avoid a competing final-frame lookAt
+
+    // Smoothly rotate back to original rotation using shortest-path slerp
+    const startQuat = mesh.quaternion.clone();
+    let targetQuat = new THREE.Quaternion().setFromEuler(planeData.originalRotation);
+    if (startQuat.dot(targetQuat) < 0) targetQuat.set(-targetQuat.x, -targetQuat.y, -targetQuat.z, -targetQuat.w);
+    const q = { t: 0 } as { t: number };
+    tl.to(q, {
+      t: 1,
+      duration: 0.9,
+      ease: 'power2.inOut',
+      onUpdate: () => { mesh.quaternion.copy(startQuat).slerp(targetQuat, q.t); }
+    }, 0);
     tl.add(() => {
-      billboardActiveRef.current = false;
-      if (billboardTickerRef.current) {
-        gsap.ticker.remove(billboardTickerRef.current);
-        billboardTickerRef.current = null;
-      }
-    }, 0.88);
-    tl.add(() => {
-      mesh.position.copy(planeData.originalPosition);
-      mesh.scale.set(1, 1, 1);
+      // Ensure exact original orientation at the end to avoid residual precision error
       mesh.rotation.copy(planeData.originalRotation);
     }, 0.9);
-    // No flip/rotation on close — keep current orientation
   };
 
   return (
